@@ -2324,42 +2324,64 @@ function simulateCheckout(){
 /* ─────────────────────────────────────────────────────────────
    SHARED WAITLIST JOIN — used by all email forms
 ───────────────────────────────────────────────────────────── */
-function joinWaitlist(email){
+const FORMSPREE_URL = 'https://formspree.io/f/mdaplroa';
+
+async function joinWaitlist(email){
   if(!email||!email.includes('@')){showToast('⚠️','Enter a valid email address');return false;}
-  // Check if this email already joined (stored locally)
+
+  // Check if already joined locally
   const joined = JSON.parse(localStorage.getItem('so_joined_emails')||'[]');
   if(joined.includes(email)){
     showToast('✅','You\'re already on the waitlist!');
     closeModal('upgradeModal');
     return false;
   }
-  // Save email locally
+
+  // Submit to Formspree — real email delivery
+  try {
+    const res = await fetch(FORMSPREE_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body: JSON.stringify({
+        email: email,
+        source: 'SavedOut Waitlist',
+        joined: new Date().toLocaleString()
+      })
+    });
+    if(!res.ok) throw new Error('Formspree error');
+  } catch(e) {
+    // Still save locally even if network fails
+    console.warn('Formspree submit failed:', e);
+  }
+
+  // Save locally so we don't double-submit
   joined.push(email);
   localStorage.setItem('so_joined_emails', JSON.stringify(joined));
+
   // Increment counter
   const newCount = incrementWaitlist();
   updateAllCounters(newCount);
   return true;
 }
 
-function joinWaitlistFromModal(){
+async function joinWaitlistFromModal(){
   const email = document.getElementById('modalEmail').value;
-  if(!joinWaitlist(email)) return;
+  if(!await joinWaitlist(email)) return;
   document.getElementById('modalEmail').value='';
   closeModal('upgradeModal');
   showToast('🎉','You\'re on the waitlist! We\'ll email you when Pro launches.');
 }
 
-function submitEmail(){
+async function submitEmail(){
   const email = document.getElementById('emailInput').value;
-  if(!joinWaitlist(email)) return;
+  if(!await joinWaitlist(email)) return;
   document.getElementById('emailInput').value='';
   showToast('🎉','You\'re on the waitlist! 3 months Pro free when we launch.');
 }
 
-function submitFounderEmail(){
+async function submitFounderEmail(){
   const email = document.getElementById('founderEmail')?.value;
-  if(!joinWaitlist(email)) return;
+  if(!await joinWaitlist(email)) return;
   document.getElementById('founderEmail').value='';
   showToast('🎉','Welcome, founding member! We\'ll be in touch soon.');
 }
