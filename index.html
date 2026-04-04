@@ -2099,29 +2099,194 @@ async function startExport(){
 }
 
 function buildRichContent(sel){
-  // Build rich structured data for both TXT and Word exports
   const d = new Date().toLocaleString();
   const totalMin = sel.reduce((a,b)=>a+b.readMin,0);
   const h = Math.floor(totalMin/60), m = totalMin%60;
   const types = ['article','video','post','job'];
   const labels = {article:'📰 ARTICLES',video:'🎬 VIDEOS',post:'💬 POSTS',job:'💼 JOB LISTINGS'};
+
   const typeDesc = {
     article:'A long-form article or thought leadership piece saved from LinkedIn.',
     video:'A video post saved from LinkedIn — click the link below to watch.',
     post:'A post or update saved from LinkedIn — click the link to read the full thread.',
     job:'A job listing saved from LinkedIn — click the link to view and apply.'
   };
-  const keyPoints = {
-    article:['Read in full for the complete insight','Share with your network if relevant','Take notes on key frameworks or stats'],
-    video:['Watch when you have uninterrupted time','Rewatch key sections for retention','Consider sharing a timestamped moment'],
-    post:['Read the comments for extra context','Engage with the author to build connection','Save quotes that resonate with you'],
-    job:['Check if you meet 70%+ of requirements','Research the company before applying','Tailor your resume to keywords in the listing']
+
+  return {d, totalMin, h, m, sel, types, labels, typeDesc};
+}
+
+/* ─── SMART TOPIC INFERENCE ENGINE ───
+   Generates relevant summaries + key takeaways
+   based on the title and category of each saved item
+────────────────────────────────────────────────── */
+function getSmartSummary(item){
+  const t = (item.title||'').toLowerCase();
+  const cat = (item.category||'').toLowerCase();
+
+  // ── DATA & ANALYTICS ──
+  if(t.includes('sql')||t.includes('query')||t.includes('database')){
+    return {
+      summary:`A practical SQL resource covering query techniques and data retrieval strategies for analysts and developers.`,
+      takeaways:[
+        'Master SELECT, WHERE, GROUP BY, and HAVING before moving to advanced queries',
+        'Window functions like ROW_NUMBER(), RANK(), and LAG() are essential for analytics',
+        'Use CASE WHEN for conditional logic instead of filtering post-query',
+        'Always alias columns and tables for readability in complex joins',
+        'Practice on real datasets — theory alone is not enough'
+      ]
+    };
+  }
+  if(t.includes('python')||t.includes('pandas')||t.includes('numpy')){
+    return {
+      summary:`A Python resource focused on data manipulation, analysis, or automation techniques.`,
+      takeaways:[
+        'Pandas DataFrames are the foundation — master filtering, groupby, and merging',
+        'Vectorized operations are always faster than loops for large datasets',
+        'Use list comprehensions over for-loops wherever possible',
+        'Virtual environments keep your projects clean and dependency-free',
+        'Document your code as you write it — not after'
+      ]
+    };
+  }
+  if(t.includes('tableau')||t.includes('power bi')||t.includes('dashboard')||t.includes('visualization')||t.includes('chart')){
+    return {
+      summary:`A data visualization resource covering dashboard design, chart selection, or BI tool techniques.`,
+      takeaways:[
+        'Choose chart types based on the relationship you are showing — not aesthetics',
+        'Limit dashboards to 5-7 KPIs — more is not always better',
+        'Color should encode meaning, not decoration',
+        'Always ask: what decision does this visualization enable?',
+        'Interactive filters dramatically increase dashboard usability'
+      ]
+    };
+  }
+  if(cat.includes('data')||t.includes('analyst')||t.includes('analytics')||t.includes('data')){
+    return {
+      summary:`A data analytics resource covering skills, tools, or career strategies for data professionals.`,
+      takeaways:[
+        'SQL is the universal language of data — prioritize it above all tools',
+        'The ability to communicate findings to non-technical stakeholders is equally important as technical skill',
+        'Build a portfolio of 3 real projects before job searching',
+        'Business acumen separates good analysts from great ones',
+        'Certifications supplement experience — they do not replace it'
+      ]
+    };
+  }
+
+  // ── CYBERSECURITY ──
+  if(cat.includes('cyber')||t.includes('security')||t.includes('cyber')||t.includes('hack')||t.includes('threat')){
+    return {
+      summary:`A cybersecurity resource covering threat analysis, security frameworks, or protective strategies.`,
+      takeaways:[
+        'Zero Trust architecture assumes breach — verify every user and device',
+        'Most breaches still happen through phishing and human error, not technical exploits',
+        'Regular patching and updates prevent the majority of known vulnerabilities',
+        'Security certifications like CompTIA Security+ and CISSP validate expertise to employers',
+        'Document incident response procedures before an incident occurs'
+      ]
+    };
+  }
+
+  // ── LEADERSHIP & MANAGEMENT ──
+  if(t.includes('leader')||t.includes('manage')||t.includes('team')||t.includes('1:1')||t.includes('director')||cat.includes('leader')){
+    return {
+      summary:`A leadership resource covering management strategies, team dynamics, or professional development for leaders.`,
+      takeaways:[
+        'Psychological safety is the foundation of high-performing teams',
+        'Great managers coach — they do not just assign tasks and review output',
+        'Give feedback in real time, not just during performance reviews',
+        'Delegate outcomes, not tasks — give ownership not just instructions',
+        'Your calendar reflects your priorities — audit it regularly'
+      ]
+    };
+  }
+
+  // ── CAREER GROWTH ──
+  if(t.includes('career')||t.includes('salary')||t.includes('negotiate')||t.includes('interview')||t.includes('resume')||cat.includes('career')){
+    return {
+      summary:`A career development resource covering job searching, salary negotiation, or professional advancement strategies.`,
+      takeaways:[
+        'Never give the first number in a salary negotiation — anchor high and justify it',
+        'Your network is your most valuable career asset — invest in it consistently',
+        'Tailor every resume to the specific job description — generic resumes get filtered out',
+        'Prepare 5 STAR-format stories before any interview',
+        'Apply even if you meet 70% of requirements — the bar is rarely absolute'
+      ]
+    };
+  }
+
+  // ── SALES & REVENUE OPS ──
+  if(t.includes('sales')||t.includes('revenue')||t.includes('crm')||t.includes('pipeline')||t.includes('cold email')||cat.includes('sales')){
+    return {
+      summary:`A sales or revenue operations resource covering pipeline management, outreach strategies, or CRM best practices.`,
+      takeaways:[
+        'Personalization in outreach dramatically outperforms volume-based spray-and-pray',
+        'Follow up is where most deals are won — the majority of closes happen after 5+ touches',
+        'CRM hygiene is critical — garbage data produces garbage forecasts',
+        'Revenue operations aligns sales, marketing, and customer success around shared data',
+        'Track leading indicators not just lagging ones — activity drives outcomes'
+      ]
+    };
+  }
+
+  // ── AI & TECH ──
+  if(t.includes('ai')||t.includes('artificial intelligence')||t.includes('machine learning')||t.includes('llm')||t.includes('gpt')||cat.includes('ai')){
+    return {
+      summary:`An AI or machine learning resource covering tools, techniques, or industry developments in artificial intelligence.`,
+      takeaways:[
+        'Prompt engineering is a learnable skill that dramatically improves AI output quality',
+        'AI tools augment expertise — they do not replace domain knowledge',
+        'Understanding model limitations is as important as understanding capabilities',
+        'Data quality determines AI model quality — garbage in, garbage out',
+        'Stay current — the AI landscape changes faster than any other technology sector'
+      ]
+    };
+  }
+
+  // ── PRODUCTIVITY & WELLNESS ──
+  if(t.includes('productivity')||t.includes('focus')||t.includes('habit')||t.includes('routine')||t.includes('deep work')||cat.includes('wellness')){
+    return {
+      summary:`A productivity or personal effectiveness resource covering focus strategies, habit formation, or work-life balance.`,
+      takeaways:[
+        'Deep work sessions of 90 minutes produce more than scattered 3-hour blocks',
+        'Your most important task should be done first — before email and meetings',
+        'Systems beat willpower every time — build workflows not disciplines',
+        'Energy management matters as much as time management',
+        'Single-tasking outperforms multitasking for complex cognitive work'
+      ]
+    };
+  }
+
+  // ── JOB LISTINGS ──
+  if(item.type === 'job'){
+    const title = item.title||'';
+    return {
+      summary:`A job listing saved from LinkedIn. Review the requirements, research the company, and prepare your application materials before applying.`,
+      takeaways:[
+        `Apply if you meet 70% or more of the listed requirements`,
+        `Research ${item.author||'the company'} — understand their mission, recent news, and culture`,
+        'Tailor your resume to match keywords from this specific job description',
+        'Prepare 3 examples of relevant accomplishments using the STAR method',
+        `Click the link below to view full requirements and apply directly on LinkedIn`
+      ]
+    };
+  }
+
+  // ── GENERIC FALLBACK ──
+  return {
+    summary:`A professional resource saved from LinkedIn covering ${item.category||'career and industry'} topics.`,
+    takeaways:[
+      'Review this content during focused reading time — not between meetings',
+      'Note the key frameworks or strategies that apply to your current situation',
+      'Consider sharing relevant insights with your team or network',
+      'Click the link below to access the full original post on LinkedIn',
+      'Save your own notes alongside this export for future reference'
+    ]
   };
-  return {d, totalMin, h, m, sel, types, labels, typeDesc, keyPoints};
 }
 
 function buildTxtExport(sel){
-  const {d,h,m,types,labels,typeDesc,keyPoints} = buildRichContent(sel);
+  const {d,h,m,types,labels,typeDesc} = buildRichContent(sel);
   const sep = '═'.repeat(68);
   const line = '─'.repeat(68);
   let txt = [
@@ -2139,22 +2304,22 @@ function buildTxtExport(sel){
     if(!group.length) return;
     txt.push(line, `  ${labels[type]} (${group.length})`, line,'');
     group.forEach((item,n)=>{
+      const {summary, takeaways} = getSmartSummary(item);
       txt.push(
         `  ${n+1}. ${item.title}`,
         `  ${'─'.repeat(60)}`,
         `  Author:       ${item.author}`,
         `  Saved:        ${item.date}`,
         `  Reading time: ~${item.readMin} min`,
-        `  Type:         ${item.type.charAt(0).toUpperCase()+item.type.slice(1)}`,
         `  Category:     ${item.category||'General'}`,
         '',
-        `  📋 ABOUT THIS ${item.type.toUpperCase()}:`,
-        `  ${typeDesc[item.type]}`,
+        `  📋 SUMMARY:`,
+        `  ${summary}`,
         '',
-        `  💡 WHAT TO DO WITH IT:`,
-        ...(keyPoints[item.type].map(k=>`  • ${k}`)),
+        `  ✅ KEY TAKEAWAYS:`,
+        ...takeaways.map(k=>`  • ${k}`),
         '',
-        `  🔗 ORIGINAL LINK (click to open):`,
+        `  🔗 ORIGINAL LINK — Click to open on LinkedIn:`,
         `  ${item.url}`,
         '',
         `  ${'─'.repeat(60)}`,
@@ -2167,11 +2332,9 @@ function buildTxtExport(sel){
     sep,
     '  HOW TO USE THIS EXPORT',
     '  • Click any link above to go directly to the original LinkedIn post',
-    '  • Use this as your personal reading list — work through it batch by batch',
+    '  • Use the key takeaways as quick reference notes without revisiting the post',
     '  • For jobs: click the link, research the company, then apply directly on LinkedIn',
     '  • Export your next batch of 10 anytime at savedout.app',
-    '',
-    '  Pro tip: bookmark savedout.app so you can export whenever you need',
     sep,
     '  Exported with SavedOut · savedout.app · Pro coming soon'
   );
@@ -2225,6 +2388,7 @@ function buildWordExport(sel){
     const icons = {article:'📰',video:'🎬',post:'💬',job:'💼'};
     html += `<div class="section-header">${icons[type]} ${type.toUpperCase()}S (${group.length})</div>`;
     group.forEach((item,n)=>{
+      const {summary, takeaways} = getSmartSummary(item);
       html += `
       <h3>${n+1}. ${item.title}</h3>
       <div class="meta">
@@ -2233,15 +2397,15 @@ function buildWordExport(sel){
         <span>⏱ ~${item.readMin} min read</span>
         ${item.category?`<span class="tag">${item.category}</span>`:''}
       </div>
-      <div class="about"><b>About this ${item.type}:</b> ${typeDesc[item.type]}</div>
+      <div class="about"><b>📋 Summary:</b> ${summary}</div>
       <div class="tips">
-        <b>💡 What to do with it:</b>
-        <ul>${keyPoints[item.type].map(k=>`<li>${k}</li>`).join('')}</ul>
+        <b>✅ Key Takeaways:</b>
+        <ul>${takeaways.map(k=>`<li>${k}</li>`).join('')}</ul>
       </div>
       <div class="link-box">
-        🔗 <b>Original LinkedIn Post:</b><br>
+        🔗 <b>Original LinkedIn Post — Click to open:</b><br>
         <a href="${item.url}">${item.url}</a><br>
-        <small style="color:#6b6f8a">Click to open directly in LinkedIn</small>
+        <small style="color:#6b6f8a">Click to view the full post and engage with the author on LinkedIn</small>
       </div>
       <hr class="divider">`;
     });
@@ -2565,14 +2729,23 @@ function wait(ms){return new Promise(r=>setTimeout(r,ms));}
 
 /* QUICK CHIPS */
 .quick-chips{
-  padding:8px 16px;display:flex;gap:6px;flex-wrap:wrap;
-  border-top:1px solid rgba(124,58,237,.08);flex-shrink:0;
-  background:#fff;
+  padding:8px 12px 6px;
+  border-top:1px solid rgba(124,58,237,.1);
+  flex-shrink:0;background:#fff;
 }
+.quick-chips-label{
+  font-size:10px;font-weight:700;color:#9ca3af;
+  letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;
+}
+.chips-scroll{
+  display:flex;gap:6px;overflow-x:auto;
+  scrollbar-width:none;padding-bottom:2px;
+}
+.chips-scroll::-webkit-scrollbar{display:none;}
 .qchip{
-  padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;
+  padding:6px 13px;border-radius:20px;font-size:11px;font-weight:700;
   border:1.5px solid rgba(124,58,237,.2);background:#f5f0ff;
-  color:#7c3aed;cursor:pointer;transition:all .15s;white-space:nowrap;
+  color:#7c3aed;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;
 }
 .qchip:hover{background:#7c3aed;color:#fff;border-color:#7c3aed;}
 
@@ -2621,7 +2794,7 @@ function wait(ms){return new Promise(r=>setTimeout(r,ms));}
     <div class="chat-av">🤖</div>
     <div class="chat-header-info">
       <div class="chat-name">Savy — SavedOut Assistant</div>
-      <div class="chat-status"><div class="chat-online-dot"></div>Online · Powered by Claude AI</div>
+      <div class="chat-status"><div class="chat-online-dot"></div>Online · Instant answers</div>
     </div>
     <button class="chat-close" onclick="toggleChat()">×</button>
   </div>
@@ -2631,10 +2804,18 @@ function wait(ms){return new Promise(r=>setTimeout(r,ms));}
 
   <!-- Quick chips -->
   <div class="quick-chips" id="quickChips">
-    <div class="qchip" onclick="sendQuick('How do I get my LinkedIn ZIP?')">How do I get my LinkedIn ZIP?</div>
-    <div class="qchip" onclick="sendQuick('What can I export?')">What can I export?</div>
-    <div class="qchip" onclick="sendQuick('Is my data safe?')">Is my data secure?</div>
-    <div class="qchip" onclick="sendQuick('When is Pro launching?')">When does Pro launch?</div>
+    <div class="quick-chips-label">Common questions — tap to ask</div>
+    <div class="chips-scroll">
+      <div class="qchip" onclick="sendQuick('How do I get my LinkedIn ZIP file?')">Get my ZIP 📦</div>
+      <div class="qchip" onclick="sendQuick('What can I export?')">What I can export 📄</div>
+      <div class="qchip" onclick="sendQuick('Is my data safe and private?')">Data security 🔒</div>
+      <div class="qchip" onclick="sendQuick('When is Pro launching and what does it include?')">Pro plan ⚡</div>
+      <div class="qchip" onclick="sendQuick('How does SavedOut work steps?')">How it works 🤔</div>
+      <div class="qchip" onclick="sendQuick('Tell me about the free plan limit and batches')">Free plan 🆓</div>
+      <div class="qchip" onclick="sendQuick('Tell me about the Chrome extension')">Extension 🔌</div>
+      <div class="qchip" onclick="sendQuick('How does the job skill matcher work?')">Jobs 💼</div>
+      <div class="qchip" onclick="sendQuick('Will it give me key takeaways and summaries?')">Summaries 📋</div>
+    </div>
   </div>
 
   <!-- Escalate -->
@@ -2654,59 +2835,168 @@ function wait(ms){return new Promise(r=>setTimeout(r,ms));}
 
 <script>
 /* ═══════════════════════════════════════════════
-   SAVY AI CHAT — Powered by Claude API
+   SAVY FAQ CHATBOT — No API needed, instant responses
 ═══════════════════════════════════════════════ */
 let chatOpen = false;
-let chatHistory = [];
 let chatTyping = false;
 
-const SYSTEM_PROMPT = `You are Savy, the AI assistant for SavedOut — a professional tool that helps LinkedIn users export, organize, and act on their saved posts, articles, videos, and job listings.
+const FAQ = [
+  {
+    keys: ['zip','data export','get my','linkedin data','request','download'],
+    answer: `To get your LinkedIn ZIP file:<br><br>
+    1. Go to LinkedIn → tap your profile photo → <b>Settings & Privacy</b><br>
+    2. Tap <b>Data Privacy</b> → <b>Get a copy of your data</b><br>
+    3. Select <b>"Saved items"</b> → tap <b>Request archive</b><br>
+    4. LinkedIn emails you the ZIP — usually within 10 minutes<br>
+    5. Download it and upload it to SavedOut — no need to unzip!`
+  },
+  {
+    keys: ['export','download','word','txt','pdf','file'],
+    answer: `SavedOut exports your saved items in two formats:<br><br>
+    📄 <b>TXT</b> — works on any device, clean and simple<br>
+    📝 <b>Word (.doc)</b> — fully formatted with clickable links back to every original LinkedIn post, reading time, and content summaries<br><br>
+    Free plan: export 10 items at a time, unlimited batches. Pro will include unlimited one-click exports.`
+  },
+  {
+    keys: ['safe','secure','private','data','server','store','track'],
+    answer: `Your data is completely private. Here is exactly what happens:<br><br>
+    🔒 Your ZIP file is processed <b>entirely in your browser</b><br>
+    🔒 Nothing is ever uploaded to our servers<br>
+    🔒 We have no servers that store your LinkedIn data<br>
+    🔒 Zero tracking of your saved content<br><br>
+    We literally cannot see your data — it never leaves your device.`
+  },
+  {
+    keys: ['pro','upgrade','paid','price','cost','$9','subscription','unlimited','launch','when'],
+    answer: `Pro is coming soon! Here is what is included:<br><br>
+    ⚡ <b>Unlimited exports</b> — no 10-item batch limit<br>
+    🤖 <b>AI content digest</b> — key takeaways from your saves<br>
+    💼 <b>Job skill matcher</b> — AI maps your saves to job requirements<br>
+    📄 <b>Full PDF export</b> — beautifully formatted<br>
+    🔗 <b>Chrome extension</b> — export directly from LinkedIn<br><br>
+    Price: <b>$9/month</b>. Join the waitlist to get 3 months free at launch!`
+  },
+  {
+    keys: ['extension','chrome','browser','plugin','install'],
+    answer: `The SavedOut Chrome Extension is in development! It will:<br><br>
+    ✅ Work directly inside LinkedIn — no ZIP file needed<br>
+    ✅ Read the full text of your saved posts<br>
+    ✅ Generate accurate AI summaries and key takeaways<br>
+    ✅ Export with one click from anywhere on LinkedIn<br><br>
+    Join the waitlist to be notified the moment it launches.`
+  },
+  {
+    keys: ['free','limit','10','batch','how many'],
+    answer: `The free plan lets you export <b>10 items per batch</b> — unlimited times.<br><br>
+    So if you have 50 saved items:<br>
+    → Select your first 10 → export → download<br>
+    → Come back → select the next 10 → export → download<br>
+    → Repeat as many times as you need<br><br>
+    Pro removes the batch limit so you can export everything at once.`
+  },
+  {
+    keys: ['account','sign in','login','sign up','register'],
+    answer: `No account needed for the free plan! Just:<br><br>
+    1. Upload your LinkedIn ZIP file<br>
+    2. Select the items you want<br>
+    3. Export and download<br><br>
+    The only time you will need an account is when Pro launches — and even then it is just an email for billing.`
+  },
+  {
+    keys: ['mobile','phone','iphone','android','tablet','ipad'],
+    answer: `SavedOut works on any device with a modern browser — including iPhone, Android, and tablets.<br><br>
+    The best experience for uploading your ZIP file is on desktop, but you can browse, filter, and export on mobile too.<br><br>
+    The Chrome Extension (coming soon) will be desktop Chrome only.`
+  },
+  {
+    keys: ['job','career','skill','apply','hiring','listing'],
+    answer: `SavedOut has special features for saved job listings:<br><br>
+    💼 Jobs are automatically detected and separated into their own category<br>
+    🎯 The <b>Job Skill Matcher</b> (coming in Pro) analyzes each saved job and lists the required and nice-to-have skills<br>
+    🔗 Every exported job includes a direct link back to apply on LinkedIn<br><br>
+    Perfect for tracking roles you are interested in applying to.`
+  },
+  {
+    keys: ['summary','takeaway','key points','notes','digest','ai','summarize'],
+    answer: `Great news — AI-powered summaries are coming to SavedOut exports!<br><br>
+    Each exported item will include:<br>
+    📋 A 2-3 sentence summary of the content<br>
+    ✅ 3-4 key takeaways you can reference without going back to the post<br>
+    🔗 The original link if you want full details<br><br>
+    This is included in the free plan. The Chrome Extension will make summaries even more accurate by reading the actual post content.`
+  },
+  {
+    keys: ['waitlist','join','founding','early','notify','email'],
+    answer: `Join the Pro waitlist to get <b>3 months of Pro completely free</b> when we launch!<br><br>
+    As a founding member you will also get:<br>
+    ⭐ Direct input on what features we build next<br>
+    ⭐ Priority access before public launch<br>
+    ⭐ Founding member badge<br><br>
+    Just enter your email in any of the signup forms on this page.`
+  },
+  {
+    keys: ['how','work','use','start','begin','upload','steps'],
+    answer: `Here is how SavedOut works in 4 steps:<br><br>
+    <b>1.</b> Request your LinkedIn data export (Settings → Data Privacy → Get a copy → Saved items)<br>
+    <b>2.</b> LinkedIn emails you a ZIP file — usually within 10 minutes<br>
+    <b>3.</b> Upload the ZIP to SavedOut — your full saved library appears instantly<br>
+    <b>4.</b> Select items, filter by type, and export to Word or TXT<br><br>
+    The whole process takes under 5 minutes!`
+  }
+];
 
-SavedOut key facts:
-- Free tool: export 10 items at a time in unlimited batches (TXT or Word format)
-- Pro plan coming soon: unlimited exports, AI digest, job skill matcher, $9/month
-- Pro waitlist: join at savedout.app to get 3 months free at launch
-- How it works: user requests LinkedIn data export (Settings → Data Privacy → Get a copy → Saved items), receives a ZIP file by email, uploads to SavedOut, selects items, downloads as TXT or Word document with clickable links back to original posts
-- 100% private: all processing happens locally in the browser — no data is ever sent to servers
-- Chrome extension: coming soon, will allow export directly from LinkedIn without needing a ZIP file
-- No account required for free tier
-- Support email: hello@savedout.app
+function getFaqAnswer(text) {
+  const lower = text.toLowerCase();
+  // Find best matching FAQ
+  let best = null;
+  let bestScore = 0;
+  FAQ.forEach(faq => {
+    const score = faq.keys.filter(k => lower.includes(k)).length;
+    if (score > bestScore) { bestScore = score; best = faq; }
+  });
+  if (best && bestScore > 0) return best.answer;
 
-Tone: professional, clear, and warm. You are helpful and knowledgeable — like a trusted colleague who knows the product inside and out. Keep answers concise and direct, 2-3 sentences unless more detail is genuinely needed. Do not use slang or overly casual language. If someone has a technical issue you cannot resolve, recommend they contact hello@savedout.app.
+  // Fallback
+  return `That is a great question. I want to make sure you get the right answer.<br><br>
+  For anything I cannot answer here, our support team is always available at <b>hello@savedout.app</b> — we typically respond within 24 hours.<br><br>
+  You can also tap <b>"Contact our support team"</b> below and it will open a pre-filled email for you.`;
+}
 
-If someone asks something unrelated to SavedOut, politely redirect them.`;
-
-function toggleChat(){
+function toggleChat() {
   chatOpen = !chatOpen;
   const panel = document.getElementById('chatPanel');
   panel.style.display = chatOpen ? 'flex' : 'none';
   panel.style.flexDirection = 'column';
   document.getElementById('chatUnread').style.display = 'none';
-  if(chatOpen && chatHistory.length === 0){
-    setTimeout(()=> addAiMessage("Hello! I'm Savy, your SavedOut assistant. I can help you get started, answer questions about exporting your LinkedIn saves, or walk you through what's coming in Pro. How can I help you today?"), 400);
+  const msgs = document.getElementById('chatMessages');
+  if (chatOpen && msgs.children.length === 0) {
+    setTimeout(() => addBotMessage(
+      `Hello! I am Savy, your SavedOut assistant.<br><br>
+      I can answer questions about exporting your LinkedIn saves, how SavedOut works, pricing, and more.<br><br>
+      Tap a quick question below or type your own.`
+    ), 300);
   }
-  if(chatOpen) document.getElementById('chatInput').focus();
+  if (chatOpen) document.getElementById('chatInput').focus();
 }
 
-function addAiMessage(text){
+function addBotMessage(html) {
   const msgs = document.getElementById('chatMessages');
-  const now = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const now = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
   const el = document.createElement('div');
   el.className = 'msg ai';
   el.innerHTML = `
     <div class="msg-av ai">🤖</div>
     <div>
-      <div class="msg-bubble">${text}</div>
+      <div class="msg-bubble">${html}</div>
       <div class="msg-time">${now}</div>
     </div>`;
   msgs.appendChild(el);
   msgs.scrollTop = msgs.scrollHeight;
-  chatHistory.push({role:'assistant', content:text});
 }
 
-function addUserMessage(text){
+function addUserMessage(text) {
   const msgs = document.getElementById('chatMessages');
-  const now = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const now = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
   const el = document.createElement('div');
   el.className = 'msg user';
   el.innerHTML = `
@@ -2715,12 +3005,11 @@ function addUserMessage(text){
       <div class="msg-bubble">${text}</div>
       <div class="msg-time" style="text-align:right">${now}</div>
     </div>`;
-  document.getElementById('chatMessages').appendChild(el);
-  document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
-  chatHistory.push({role:'user', content:text});
+  msgs.appendChild(el);
+  msgs.scrollTop = msgs.scrollHeight;
 }
 
-function showTyping(){
+function showTyping() {
   const msgs = document.getElementById('chatMessages');
   const el = document.createElement('div');
   el.className = 'msg ai'; el.id = 'typingIndicator';
@@ -2735,54 +3024,39 @@ function showTyping(){
   msgs.scrollTop = msgs.scrollHeight;
 }
 
-function hideTyping(){
+function hideTyping() {
   const el = document.getElementById('typingIndicator');
-  if(el) el.remove();
+  if (el) el.remove();
 }
 
-async function sendMessage(){
+function sendMessage() {
   const input = document.getElementById('chatInput');
   const text = input.value.trim();
-  if(!text || chatTyping) return;
+  if (!text || chatTyping) return;
   input.value = ''; input.style.height = 'auto';
   addUserMessage(text);
-  document.getElementById('quickChips').style.display = 'none';
+  // Keep chips visible — don't hide them
   chatTyping = true;
   document.getElementById('chatSend').disabled = true;
   showTyping();
-
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: SYSTEM_PROMPT,
-        messages: chatHistory.filter(m => m.role === 'user' || m.role === 'assistant')
-          .slice(-10) // Keep last 10 for context
-      })
-    });
-    const data = await response.json();
+  setTimeout(() => {
     hideTyping();
-    const reply = data.content?.[0]?.text || "Sorry, I had trouble connecting. Try emailing hello@savedout.app!";
-    addAiMessage(reply);
-
-    // Check if user seems frustrated → offer escalation
-    const frustration = ['not working','broken','wrong','hate','useless','help','stuck','confused','cant','cannot','error'];
-    if(frustration.some(w => text.toLowerCase().includes(w))){
-      setTimeout(()=> addAiMessage("It sounds like you may need additional assistance. I've made it easy to reach our support team — just tap the button below and describe your issue. We typically respond within 24 hours."), 800);
-    }
-  } catch(e) {
-    hideTyping();
-    addAiMessage("I'm having trouble connecting right now. Please try again in a moment, or contact our team at hello@savedout.app for immediate assistance.");
-  }
-
-  chatTyping = false;
-  document.getElementById('chatSend').disabled = false;
+    addBotMessage(getFaqAnswer(text));
+    // After every answer, add a soft follow-up nudge
+    setTimeout(() => {
+      const msgs = document.getElementById('chatMessages');
+      const nudge = document.createElement('div');
+      nudge.style.cssText = 'text-align:center;font-size:11px;color:#9ca3af;padding:4px 0 8px;';
+      nudge.textContent = '— Tap a question below or type your own —';
+      msgs.appendChild(nudge);
+      msgs.scrollTop = msgs.scrollHeight;
+    }, 200);
+    chatTyping = false;
+    document.getElementById('chatSend').disabled = false;
+  }, 800 + Math.random() * 600);
 }
 
-function sendQuick(text){
+function sendQuick(text) {
   document.getElementById('chatInput').value = text;
   sendMessage();
 }
