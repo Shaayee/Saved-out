@@ -2328,62 +2328,66 @@ const FORMSPREE_URL = 'https://formspree.io/f/mdaplroa';
 
 async function joinWaitlist(email){
   if(!email||!email.includes('@')){showToast('⚠️','Enter a valid email address');return false;}
-
-  // Check if already joined locally
+  // Check if this email already joined (stored locally)
   const joined = JSON.parse(localStorage.getItem('so_joined_emails')||'[]');
   if(joined.includes(email)){
     showToast('✅','You\'re already on the waitlist!');
     closeModal('upgradeModal');
     return false;
   }
-
-  // Submit to Formspree — real email delivery
-  try {
-    const res = await fetch(FORMSPREE_URL, {
-      method:'POST',
-      headers:{'Content-Type':'application/json','Accept':'application/json'},
-      body: JSON.stringify({
-        email: email,
-        source: 'SavedOut Waitlist',
-        joined: new Date().toLocaleString()
-      })
-    });
-    if(!res.ok) throw new Error('Formspree error');
-  } catch(e) {
-    // Still save locally even if network fails
-    console.warn('Formspree submit failed:', e);
-  }
-
-  // Save locally so we don't double-submit
+  // Save email locally
   joined.push(email);
   localStorage.setItem('so_joined_emails', JSON.stringify(joined));
-
   // Increment counter
   const newCount = incrementWaitlist();
   updateAllCounters(newCount);
+
+  // Send to Formspree — real email collection
+  try {
+    await fetch(FORMSPREE_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      body: JSON.stringify({
+        email: email,
+        source: 'SavedOut Waitlist',
+        timestamp: new Date().toLocaleString(),
+        waitlist_position: newCount
+      })
+    });
+  } catch(e) {
+    // Silent fail — counter still increments even if Formspree is unreachable
+    console.log('Formspree error:', e);
+  }
+
   return true;
 }
 
-async function joinWaitlistFromModal(){
+function joinWaitlistFromModal(){
   const email = document.getElementById('modalEmail').value;
-  if(!await joinWaitlist(email)) return;
-  document.getElementById('modalEmail').value='';
-  closeModal('upgradeModal');
-  showToast('🎉','You\'re on the waitlist! We\'ll email you when Pro launches.');
+  joinWaitlist(email).then(success => {
+    if(!success) return;
+    document.getElementById('modalEmail').value='';
+    closeModal('upgradeModal');
+    showToast('🎉','You\'re on the waitlist! We\'ll email you when Pro launches.');
+  });
 }
 
-async function submitEmail(){
+function submitEmail(){
   const email = document.getElementById('emailInput').value;
-  if(!await joinWaitlist(email)) return;
-  document.getElementById('emailInput').value='';
-  showToast('🎉','You\'re on the waitlist! 3 months Pro free when we launch.');
+  joinWaitlist(email).then(success => {
+    if(!success) return;
+    document.getElementById('emailInput').value='';
+    showToast('🎉','You\'re on the waitlist! 3 months Pro free when we launch.');
+  });
 }
 
-async function submitFounderEmail(){
+function submitFounderEmail(){
   const email = document.getElementById('founderEmail')?.value;
-  if(!await joinWaitlist(email)) return;
-  document.getElementById('founderEmail').value='';
-  showToast('🎉','Welcome, founding member! We\'ll be in touch soon.');
+  joinWaitlist(email).then(success => {
+    if(!success) return;
+    document.getElementById('founderEmail').value='';
+    showToast('🎉','Welcome, founding member! We\'ll be in touch soon.');
+  });
 }
 
 /* ─────────────────────────────────────────────────────────────
